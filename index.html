@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BLOCK OPS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>.hidden{display:none!important}html,body{background:#0b0f14;color:#e8eef5;font-family:system-ui,sans-serif}#bootfail{position:fixed;z-index:99999;left:0;right:0;top:0;padding:14px;background:#b00020;color:#fff;font:15px/1.4 system-ui,sans-serif}</style>
+<link rel="stylesheet" href="src/ui/styles.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="crosshair"><i></i><i></i><i></i><i></i></div>
+  <div id="hitmarker"></div>
+  <div id="damage-flash"></div>
+  <div id="water-overlay"></div>
+  <div id="fx-dark"></div><div id="fx-blind"></div><div id="fx-ice"></div><div id="fx-poison"></div>
+  <div id="sv-top" class="hidden"><b id="sv-level">LV 1</b><div class="xp"><i id="sv-xp-fill"></i><span id="sv-xp-text">0 / 100 XP</span></div><span id="sv-coins">0</span></div>
+  <div id="sv-hud" class="hidden"><div class="sv-bar"><i id="sv-hunger-fill"></i></div><small>HUNGER</small><div id="sv-items"></div></div>
+  <div id="boss-bar" class="hidden"><b id="boss-name"></b><div class="bb"><i id="boss-fill"></i></div><div id="boss-heads"></div></div>
+  <button id="trade-prompt" class="hidden">TRADE with <b id="trade-who"></b> (Y)</button>
+  <div id="portal-overlay"></div>
+  <div id="scope-overlay" class="hidden"></div>
+  <div id="top-left">
+    <div id="hp-bar"><div id="hp-fill"></div><span id="hp-text">100</span></div>
+    <div id="mode-text">COMBAT</div>
+  </div>
+  <div id="top-right">
+    <div id="kills">KILLS <b id="kill-count">0</b></div>
+    <div id="time-text">12:00</div>
+    <div id="realm-text"></div>
+  </div>
+  <div id="killfeed"></div>
+  <div id="bottom-right">
+    <div id="weapon-name">AK-47</div>
+    <div id="ammo"><b id="ammo-mag">30</b><span>/</span><span id="ammo-res">120</span></div>
+  </div>
+  <div id="hotbar"></div>
+  <div id="toast"></div>
+  <button id="pause-btn" aria-label="Pause">&#10074;&#10074;</button>
+</div>
+
+<div id="mobile-controls" class="hidden">
+  <div id="joystick"><div id="stick"></div></div>
+  <button class="mbtn" id="btn-shoot">SHOOT</button>
+  <button class="mbtn" id="btn-jump">JUMP</button>
+  <button class="mbtn" id="btn-reload">RELOAD</button>
+  <button class="mbtn" id="btn-scope">SCOPE</button>
+  <button class="mbtn" id="btn-build">BUILD</button>
+  <button class="mbtn" id="btn-place">PLACE</button>
+  <button class="mbtn" id="btn-crouch">DUCK</button>
+  <button class="mbtn" id="btn-weapon">SWAP</button>
+  <button class="mbtn" id="btn-block">BLOCK</button>
+  <button class="mbtn" id="btn-fly">FLY</button>
+  <button class="mbtn" id="btn-cam">CAM</button>
+  <button class="mbtn" id="btn-bag">BAG</button>
+  <button class="mbtn" id="btn-craft">CRAFT</button>
+  <button class="mbtn" id="btn-enter">ENTER</button>
+  <button class="mbtn" id="btn-sprint">RUN</button>
+</div>
+
+<div id="menu">
+  <canvas id="lobby-canvas"></canvas>
+  <div id="lobby-ui">
+
+    <div id="lb-top">
+      <button id="lb-profile" class="chip" title="Change name and look">
+        <span id="lb-avatar">P</span>
+        <span class="chip-text"><b id="lb-name">PLAYER</b><small>Tap to edit look</small></span>
+      </button>
+      <div class="logo">BLOCK<span>OPS</span></div>
+      <div class="lb-top-right">
+        <button id="gfx-btn" class="sq" title="Graphics quality"><i>&#127912;</i><small id="gfx-label">GFX HIGH</small></button>
+        <button id="menu-hud-btn" class="sq" title="Customize HUD"><i>&#9881;</i><small>HUD</small></button>
+        <button id="help-btn" class="sq" title="Controls"><i>?</i><small>HELP</small></button>
+      </div>
+    </div>
+
+    <div id="lb-left">
+      <button id="wd-open" class="sq"><i>&#128085;</i><small>LOOK</small></button>
+      <button id="lb-copy-link" class="sq"><i>&#128279;</i><small>INVITE</small></button>
+    </div>
+
+    <div id="lb-squad" class="card">
+      <h3>SQUAD <span id="lb-count">1/4</span></h3>
+      <div id="lb-friends"><div class="squad-slot you">You</div></div>
+      <label>YOUR BO-ID</label>
+      <div class="idbox"><code id="my-id">...</code><button id="copy-id">COPY</button></div>
+      <label>JOIN A FRIEND</label>
+      <div class="idbox">
+        <input id="friend-id" placeholder="BO-XXXX-1234" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <button id="join-btn">JOIN</button>
+      </div>
+      <small id="net-status">Offline: bots only</small>
+    </div>
+
+    <div id="lb-loading" class="hidden">Loading character...</div>
+
+    <div id="lb-bottom-left" class="tip">TIP: <span id="lb-tip"></span></div>
+
+    <div id="lb-bottom-right">
+      <div id="world-panel" class="card">
+        <h3>WORLD <small id="start-sub">SOLO</small></h3>
+        <div id="wp-step1">
+          <button id="wp-create" class="start mini">CREATE NEW WORLD<small>a brand new unique seed</small></button>
+          <button id="wp-continue" class="wide hidden">CONTINUE LAST WORLD</button>
+          <label>JOIN WORLD WITH SEED</label>
+          <div class="idbox">
+            <input id="wp-seed-input" placeholder="a3f9-8c21-4b7d-9e12-7f8a-1b2c-3d4e-5f60" autocomplete="off" spellcheck="false">
+            <button id="wp-join">JOIN</button>
+          </div>
+          <small id="wp-error"></small>
+          <div id="wp-first-row" class="hidden">
+            <label>YOUR FIRST WORLD SEED</label>
+            <div class="idbox"><code id="wp-first-1"></code><button id="wp-first-copy-1">COPY</button></div>
+          </div>
+        </div>
+        <div id="wp-step2" class="hidden">
+          <label id="wp-label">WORLD SEED</label>
+          <div class="idbox"><code id="wp-seed"></code><button id="wp-copy">COPY</button></div>
+          <div id="wp-first-row2" class="hidden">
+            <label>YOUR FIRST WORLD SEED</label>
+            <div class="idbox"><code id="wp-first-2"></code><button id="wp-first-copy-2">COPY</button></div>
+          </div>
+          <div class="modes">
+            <button id="mode-creative" class="start mini">CREATIVE<small id="mode-creative-sub">fly, free build, no damage</small></button>
+            <button id="mode-survival" class="start mini red">SURVIVAL<small id="mode-survival-sub">damage, no fly</small></button>
+          </div>
+          <label class="tog"><input type="checkbox" id="opt-bots" checked> Mobs (zombies, skeletons, spiders, creepers)</label>
+          <button id="wp-back" class="wide">BACK</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="wardrobe" class="card hidden">
+      <h3>YOUR LOOK</h3>
+      <label>NAME</label>
+      <input id="wd-name" maxlength="12" autocomplete="off" spellcheck="false">
+      <div id="wd-rows"></div>
+      <button id="wd-done" class="wide">DONE</button>
+    </div>
+
+    <div id="help" class="card hidden">
+      <h3>CONTROLS</h3>
+      <p><b>PC:</b> WASD move, Shift sprint, Space jump, Ctrl crouch (or descend when flying), C crafting (Survival), mouse aim, LMB shoot / swing / draw bow, RMB scope, R reload, 1-8 weapons (BUILD mode: hotbar slots), F toggle BUILD/COMBAT, Q/E or wheel pick item, G place, X break, Esc pause.</p>
+      <p><b>Camera:</b> T (CAM button on phone) switches third person (default, you see yourself from behind and above) and first person. Scoped rifles switch to first person while aiming.</p>
+      <p><b>Fly:</b> double-tap Space or Z. Space up, C down, Shift fast. No time limit, no height limit. <b>I</b> inventory (all blocks, hotel, vehicles). <b>V</b> enter / exit vehicle. <b>H</b> or PORTAL LIGHTER to light a portal frame (4x5 obsidian = Underworld, gold = Sky realm).</p>
+      <p><b>Phone:</b> left stick move, drag right side to look, buttons for the rest. BUILD switches Shoot to break and Place to place. FLY (or double-tap JUMP) toggles flying, DUCK goes down. BAG opens the inventory, ENTER gets in or out of a vehicle.</p>
+      <button id="help-close" class="wide">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<div id="hud-edit-grid" class="hidden"></div>
+
+<div id="hud-editor" class="hidden">
+  <div id="he-title">Tap an item to select it, drag to move</div>
+  <div class="he-sliders">
+    <label>Size <input id="he-size" type="range" min="0.4" max="2.6" step="0.05" value="1" data-needs-sel></label>
+    <label>Opacity <input id="he-opacity" type="range" min="0.15" max="1" step="0.05" value="1" data-needs-sel></label>
+    <label class="he-check"><input id="he-hide" type="checkbox" data-needs-sel> Hide</label>
+  </div>
+  <div class="he-row">
+    <button id="he-reset" data-needs-sel>Reset item</button>
+    <button id="he-mirror">Mirror L/R</button>
+    <button id="he-resetall">Reset all</button>
+    <button id="he-flip" title="Move this panel">&#8645;</button>
+    <button id="he-done" class="primary">DONE</button>
+  </div>
+</div>
+
+<div id="inventory" class="hidden">
+  <div class="inv-panel">
+    <div class="inv-head">
+      <h2>INVENTORY</h2>
+      <div class="inv-tabs">
+        <button data-tab="blocks" class="on">BLOCKS</button>
+        <button data-tab="builds">BUILDINGS</button>
+        <button data-tab="vehicles">VEHICLES</button>
+        <button data-tab="tools">TOOLS</button>
+      </div>
+      <button id="inv-close" aria-label="Close">&#10005;</button>
+    </div>
+    <div id="inv-grid"></div>
+    <div class="inv-foot">
+      <small>Pick a hotbar slot below, then tap an item to put it there. Use items with PLACE (G / right-click in BUILD mode).</small>
+      <div id="inv-hotbar"></div>
+    </div>
+  </div>
+</div>
+
+<div id="trade" class="hidden">
+  <div class="inv-panel">
+    <div class="inv-head"><h2 id="trade-title">TRADER</h2><span id="trade-coins"></span><button id="trade-close" aria-label="Close">&#10005;</button></div>
+    <div id="trade-rows"></div>
+    <div class="inv-foot"><small id="trade-msg">Coins come from breaking blocks, killing zombies and selling to villagers.</small></div>
+  </div>
+</div>
+
+<div id="craft" class="hidden">
+  <div class="inv-panel">
+    <div class="inv-head"><h2>CRAFTING</h2><span id="craft-coins"></span><button id="craft-close" aria-label="Close">&#10005;</button></div>
+    <div id="craft-rows"></div>
+    <div class="inv-foot"><small id="craft-msg"></small></div>
+  </div>
+</div>
+
+<div id="pause-menu" class="hidden">
+  <div class="panel">
+    <h2>PAUSED</h2>
+    <button id="pm-resume" class="big">RESUME</button>
+    <button id="pm-save" class="big alt">SAVE WORLD</button>
+    <label class="slide">World seed (share it so friends enter the same world) <span id="pm-mode"></span></label>
+    <div class="idbox"><code id="pm-seed">-</code><button id="pm-copy">COPY</button></div>
+    <button id="pm-hud" class="big alt">CUSTOMIZE HUD</button>
+    <label class="slide">Look sensitivity <input id="pm-sens" type="range" min="0.4" max="3" step="0.05" value="1"></label>
+    <button id="pm-menu" class="link">Back to main menu</button>
+  </div>
+</div>
+
+<div id="rotate-hint" class="hidden">Rotate your phone to landscape</div>
+
+<script>
+  // Safety net 1: the ID exists even if the game script is slow or blocked (same key/format as src/multiplayer/UniqueID.js).
+  (function () {
+    var K = 'blockops.id.v1', L = 'ABCDEFGHJKLMNPQRSTUVWXYZ', id = null;
+    try { id = localStorage.getItem(K); } catch (e) {}
+    if (!id || !/^BO-[A-Z]{4}-\d{4}$/.test(id)) {
+      var r = function (n) { return Math.floor(Math.random() * n); }, a = '';
+      for (var i = 0; i < 4; i++) a += L.charAt(r(L.length));
+      id = 'BO-' + a + '-' + ('000' + r(10000)).slice(-4);
+      try { localStorage.setItem(K, id); } catch (e) {}
+    }
+    window.addEventListener('DOMContentLoaded', function () { var e = document.getElementById('my-id'); if (e) e.textContent = id; });
+  })();
+  // Safety net 2: if the game never starts, say exactly why instead of showing a broken page.
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (window.__bootOk) return;
+      var d = document.createElement('div'); d.id = 'bootfail';
+      d.textContent = 'Game files did not load. Make sure the whole "src" folder, "icons" and index.html were uploaded to the site root (not inside another folder), then reload. Also check internet access to unpkg.com.';
+      document.body.appendChild(d);
+    }, 6000);
+  });
+</script>
+<script type="module" src="src/main.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+import { getUniqueId, generateId, ID_PATTERN, seedFromId, normalizeId } from '../src/multiplayer/UniqueID.js';
+const store = new Map(); const ls = { getItem:k=>store.get(k)??null, setItem:(k,v)=>store.set(k,v) };
+const a = getUniqueId(ls), b = getUniqueId(ls);
+console.log('id', a, 'stable across calls:', a===b, 'valid:', ID_PATTERN.test(a));
+console.assert(a===b && ID_PATTERN.test(a));
+const set = new Set(Array.from({length:5000},()=>generateId())); console.log('unique of 5000:', set.size);
+console.assert(ID_PATTERN.test(normalizeId('  bo-abcd-1234 ')));
+console.assert(seedFromId('BO-ABCD-1234')===seedFromId('BO-ABCD-1234'));
+const broken = { getItem(){ throw new Error('blocked'); }, setItem(){ throw new Error('blocked'); } };
+console.log('storage blocked still gives id:', ID_PATTERN.test(getUniqueId(broken)));
+console.log('OK');
