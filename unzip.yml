@@ -1,0 +1,45 @@
+# Upload a .zip to the top of this repo and this workflow unpacks it into the real folder structure, then deletes the .zip.
+name: Unzip uploaded project
+
+on:
+  push:
+    paths:
+      - '*.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack every .zip in the repo root
+        run: |
+          shopt -s nullglob
+          zips=(*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then echo "No zip found, nothing to do."; exit 0; fi
+          for z in "${zips[@]}"; do
+            tmp="$(mktemp -d)"
+            unzip -q -o "$z" -d "$tmp"
+            # if the zip holds a single top-level folder (blockops/), use its contents so index.html lands in the repo root
+            src="$tmp"
+            if [ "$(ls -A "$tmp" | wc -l)" -eq 1 ] && [ -d "$tmp/$(ls -A "$tmp")" ]; then src="$tmp/$(ls -A "$tmp")"; fi
+            rm -rf "$src/.git" "$src/.github"
+            cp -a "$src"/. ./
+            git rm -q --cached "$z" 2>/dev/null || true
+            rm -f "$z"
+            echo "Unpacked $z"
+          done
+
+      - name: Commit the unpacked files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "Nothing changed."; else
+            git commit -m "Unpack project zip into folders"
+            git push
+          fi
